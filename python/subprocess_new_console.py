@@ -1,0 +1,1 @@
+subprocess.Popen(["C:\\Path\\To\\Python\\python.exe", script_path], creationflags=subprocess.CREATE_NEW_CONSOLE)
