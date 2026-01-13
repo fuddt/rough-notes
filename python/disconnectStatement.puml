@@ -1,0 +1,60 @@
+@startuml
+title 断線判定（候補点iの局所11点）ステートマシン
+
+[*] --> Init
+
+state Init {
+  :入力 points[], candidate_index i, window=5;
+  :範囲 lo=max(0,i-window), hi=min(n-1,i+window);
+}
+Init --> ExtractSegment : 有効範囲を決定
+
+state ExtractSegment {
+  :seg = points[lo..hi];\n中心位置 c = i - lo;
+  :seg_len = hi-lo+1;
+}
+ExtractSegment --> TooShort : seg_len < 5
+ExtractSegment --> ComputeTheta : seg_len >= 5
+
+state TooShort {
+  :局所点が少なすぎる;\n判定不能（保守的に連続扱い or 要再取得）;
+}
+TooShort --> [*]
+
+state ComputeTheta {
+  :theta[j] = angle(seg[j]-seg[j-1], seg[j+1]-seg[j]);\n(端点はNaN);
+}
+ComputeTheta --> ComputeJerk
+
+state ComputeJerk {
+  :jerk[j] = |theta[j+1] - 2*theta[j] + theta[j-1]|;
+}
+ComputeJerk --> ComputeThresholds
+
+state ComputeThresholds {
+  :theta_thr = median(theta) + k_theta * MAD(theta);
+  :jerk_thr  = median(jerk)  + k_jerk  * MAD(jerk);
+  note right
+    閾値は固定値にせず局所分布で自動化
+    (距離を使わない制約でも安定しやすい)
+  end note
+}
+ComputeThresholds --> Decide
+
+state Decide {
+  :center_theta = theta[c];\ncenter_jerk = jerk[c];
+}
+Decide --> Break : center_theta > theta_thr or center_jerk > jerk_thr
+Decide --> Continuous : otherwise
+
+state Break {
+  :断線っぽい（連続性が区切れた）;
+}
+Break --> [*]
+
+state Continuous {
+  :連続っぽい（カーブとして自然）;
+}
+Continuous --> [*]
+
+@enduml
