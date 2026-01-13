@@ -1,0 +1,52 @@
+@startuml
+title 断線判定（候補点iの前後5点）アクティビティ図
+
+start
+
+:Input
+- points[] (順序保持)
+- candidate i
+- window=5;
+
+:lo = max(0, i-window);
+:hi = min(n-1, i+window);
+:seg = points[lo..hi];
+:c = i - lo;
+
+if (seg_len < 5 ?) then (yes)
+  :判定不能
+  - 点が不足;
+  :return "unknown/continuous";
+  stop
+endif
+
+:Compute theta for j=1..seg_len-2
+theta[j] = angle(v1, v2)
+v1 = seg[j] - seg[j-1]
+v2 = seg[j+1] - seg[j]
+(端はNaN);
+
+:Compute jerk for j=2..seg_len-3
+jerk[j] = |theta[j+1] - 2*theta[j] + theta[j-1]|;
+
+:Robust thresholds (局所自動閾値)
+theta_thr = median(theta) + k_theta * MAD(theta)
+jerk_thr  = median(jerk)  + k_jerk  * MAD(jerk);
+
+:Center features
+center_theta = theta[c]
+center_jerk  = jerk[c];
+
+if (center_theta is NaN AND center_jerk is NaN ?) then (yes)
+  :return "unknown/continuous";
+  stop
+endif
+
+if (center_theta > theta_thr\nOR center_jerk > jerk_thr ?) then (yes)
+  :return "break";
+else (no)
+  :return "continuous";
+endif
+
+stop
+@enduml
