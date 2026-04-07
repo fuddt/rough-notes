@@ -1,4 +1,4 @@
-#include <fstream>
+くinclude <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -89,4 +89,33 @@ std::vector<Segment> loadSegments(const std::string& filePath)
     }
 
     return segments;
+}
+
+#include <iostream>
+#include <stdexcept>
+#include <vector>
+
+int main()
+{
+    try
+    {
+        // 例: 動画全体の総フレーム数
+        const int totalFrames = 5000;
+
+        // セグメント一覧を読み込む
+        std::vector<Segment> segments = loadSegments("play_segments.txt");
+
+        // 動画の総フレーム数と矛盾していないか確認
+        validateSegmentsAgainstTotalFrames(segments, totalFrames);
+
+        // セグメントごとに再生
+        playSegments(segments);
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "エラー: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
 }
