@@ -1,0 +1,32 @@
+@startuml
+title アクティビティ図: 処理フロー全体
+
+start
+
+:main() 開始;
+
+:loadConfig();
+if (設定読込成功?) then (Yes)
+else (No)
+    :エラーログ出力;
+    stop
+endif
+
+:readInput();
+if (入力読込成功?) then (Yes)
+else (No)
+    :エラーログ出力;
+    stop
+endif
+
+:validateData();
+if (データ妥当?) then (Yes)
+    :processData();
+    :saveResult();
+    :正常終了;
+else (No)
+    :バリデーションエラー表示;
+endif
+
+stop
+@enduml
