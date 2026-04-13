@@ -1,0 +1,37 @@
+@startuml
+title シーケンス図: 関数呼び出しの流れ
+
+actor User
+participant "main()" as Main
+participant "loadConfig()" as Config
+participant "readInput()" as Input
+participant "validateData()" as Validate
+participant "processData()" as Process
+participant "saveResult()" as Save
+
+' ユーザーがプログラムを開始する
+User -> Main : 実行開始
+
+' main から各関数を順番に呼び出す
+Main -> Config : loadConfig()
+Config --> Main : 設定データ
+
+Main -> Input : readInput()
+Input --> Main : 入力データ
+
+Main -> Validate : validateData(data)
+
+alt 検証成功
+    Validate --> Main : OK
+    Main -> Process : processData(data)
+    Process --> Main : 加工済みデータ
+
+    Main -> Save : saveResult(result)
+    Save --> Main : 保存成功
+else 検証失敗
+    Validate --> Main : Error
+    Main -> Main : エラーメッセージ表示
+end
+
+Main --> User : 終了
+@enduml
