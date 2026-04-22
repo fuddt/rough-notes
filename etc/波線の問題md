@@ -1,0 +1,254 @@
+できます。
+ただし条件がある。
+
+〜 を読めるようにしたいなら、at() の後で std::string のまま雑に使わず、UTF-8 として受けて、Windows では UTF-16 に変換してからパスAPIへ渡す必要があります。
+nlohmann/json の get<T>() は JSON 値を指定型へ変換して返し、std::string で受けるのは普通の使い方です。std::filesystem::path は Windows ではネイティブ文字型が wchar_t です。Windows の MultiByteToWideChar は UTF-8 変換に使え、不正シーケンス時は MB_ERR_INVALID_CHARS で失敗検出できます。  ￼
+
+つまり、今やるべきことはこれです。
+
+1. j.at("path").get<std::string>() で UTF-8 文字列を取る
+2. UTF-8 妥当性をチェックする
+3. UTF-8 → UTF-16 に正しく変換する
+4. std::filesystem::path に渡す
+5. その後の exists や ifstream や Win32 API は、その path / wide 文字列を使う
+
+やってはいけないこと
+
+これです。
+
+std::string s = j.at("path").get<std::string>();
+std::wstring ws(s.begin(), s.end()); // ダメ
+
+これは文字コード変換ではありません。
+UTF-8 の各バイトを wchar_t に広げているだけなので、〜、日本語、全角記号で壊れやすいです。
+
+⸻
+
+そのまま使える実装
+
+Windows 前提で、かなり安全寄りの最小実装を書きます。
+
+#include <windows.h>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <nlohmann/json.hpp>
+// UTF-8 の妥当性を検査する
+// 不正な UTF-8 バイト列が混ざっていたら false を返す
+bool is_valid_utf8(const std::string& s)
+{
+    if (s.empty())
+    {
+        return true;
+    }
+    int result = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        s.data(),
+        static_cast<int>(s.size()),
+        nullptr,
+        0
+    );
+    return result != 0;
+}
+// UTF-8 の std::string を UTF-16 の std::wstring に変換する
+// Windows のパスAPIへ安全に渡すための基本関数
+std::wstring utf8_to_wstring(const std::string& utf8)
+{
+    if (utf8.empty())
+    {
+        return L"";
+    }
+    // 1回目: 必要な wchar_t 数を取得
+    int required_size = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        utf8.data(),
+        static_cast<int>(utf8.size()),
+        nullptr,
+        0
+    );
+    if (required_size == 0)
+    {
+        throw std::runtime_error("UTF-8 -> UTF-16 変換サイズ取得に失敗しました");
+    }
+    std::wstring result(required_size, L'\0');
+    // 2回目: 実際に変換
+    int converted_size = MultiByteToWideChar(
+        CP_UTF8,
+        MB_ERR_INVALID_CHARS,
+        utf8.data(),
+        static_cast<int>(utf8.size()),
+        result.data(),
+        required_size
+    );
+    if (converted_size == 0)
+    {
+        throw std::runtime_error("UTF-8 -> UTF-16 変換に失敗しました");
+    }
+    return result;
+}
+// デバッグ用: 文字列のバイト列を表示する
+// 見えない文字や怪しい UTF-8 を調べたいときに使う
+void dump_bytes(const std::string& s)
+{
+    std::cout << "size = " << s.size() << "\n";
+    for (size_t i = 0; i < s.size(); ++i)
+    {
+        unsigned char c = static_cast<unsigned char>(s[i]);
+        std::cout
+            << "[" << i << "] 0x"
+            << std::hex << std::uppercase
+            << std::setw(2) << std::setfill('0')
+            << static_cast<int>(c)
+            << std::dec;
+        if (c >= 0x20 && c <= 0x7E)
+        {
+            std::cout << " ('" << s[i] << "')";
+        }
+        std::cout << "\n";
+    }
+}
+// JSON の path 項目を安全に filesystem::path に変換する
+std::filesystem::path get_json_path(const nlohmann::json& j, const std::string& key)
+{
+    // 1. JSON から UTF-8 の std::string として取得
+    std::string path_utf8 = j.at(key).get<std::string>();
+    // 2. UTF-8 妥当性チェック
+    if (!is_valid_utf8(path_utf8))
+    {
+        dump_bytes(path_utf8);
+        throw std::runtime_error("path が不正な UTF-8 です");
+    }
+    // 3. UTF-8 -> UTF-16 へ正しく変換
+    std::wstring path_w = utf8_to_wstring(path_utf8);
+    // 4. Windows の native path として扱う
+    return std::filesystem::path(path_w);
+}
+int main()
+{
+    try
+    {
+        // JSON 文字列中の "〜" を含む例
+        nlohmann::json j = {
+            {"path", "C:/work/テスト〜版/input.txt"}
+        };
+        // JSON から安全にパスを取得
+        std::filesystem::path p = get_json_path(j, "path");
+        // 存在確認
+        if (std::filesystem::exists(p))
+        {
+            std::wcout << L"存在します: " << p.wstring() << std::endl;
+        }
+        else
+        {
+            std::wcout << L"存在しません: " << p.wstring() << std::endl;
+        }
+        // ファイルを読む例
+        std::ifstream ifs(p, std::ios::binary);
+        if (!ifs)
+        {
+            std::wcout << L"ファイルを開けませんでした: " << p.wstring() << std::endl;
+            return 1;
+        }
+        std::cout << "ファイルオープン成功\n";
+    }
+    catch (const std::exception& e)
+    {
+        std::cout << "error: " << e.what() << std::endl;
+        return 1;
+    }
+    return 0;
+}
+
+⸻
+
+重要ポイント
+
+1. 〜 自体を禁止しなくていい
+
+禁止しなくていいです。
+正しく文字コード変換すれば扱えます。
+
+ただし、見た目が似た別文字は依然として危険です。
+
+* 〜 U+301C
+* ～ U+FF5E
+
+これは別文字です。
+なので「読めるようにする」と「実ファイル名と一致する」は別問題です。
+
+⸻
+
+2. ファイル名の実体と JSON の文字が同じか確認する
+
+ここはかなり重要です。
+
+JSON に 〜 が入っていても、実ファイル名が ～ なら別パスです。
+この場合は変換が正しくても開けません。
+
+⸻
+
+3. std::filesystem::path は Windows では wide 側に寄せる
+
+Windows では path::value_type は wchar_t です。
+なので、UTF-8 の std::string をそのまま雑に流すより、一度 std::wstring に変換してから path を作る方が安全です。  ￼
+
+⸻
+
+実務でのおすすめ
+
+あなたの状況なら、JSON のパス取得を毎回ベタ書きするのはやめて、
+専用の1関数に閉じ込めるのがいいです。
+
+std::filesystem::path read_json_path(const nlohmann::json& j, const std::string& key)
+{
+    return get_json_path(j, key);
+}
+
+使う側はこう。
+
+std::filesystem::path input_path = read_json_path(j, "input_path");
+std::filesystem::path output_path = read_json_path(j, "output_path");
+
+これなら、あとで
+
+* 危険文字チェック
+* trim
+* 正規化
+* ログ出力
+
+をまとめて追加できます。
+
+⸻
+
+それでもまだ死ぬ場合
+
+その場合は、〜 が犯人ではなく、そのパス中の実バイト列が壊れている可能性があります。
+そのときは dump_bytes() で JSON から取れた値を確認してください。
+
+特に見るべきはここです。
+
+* E3 80 9C なら 〜
+* EF BD 9E なら ～
+
+見た目が同じでも別です。
+
+⸻
+
+率直な結論
+
+at() の後にやるべきことは、これです。
+
+* get<std::string>()
+* UTF-8 妥当性チェック
+* UTF-8 → UTF-16 変換
+* std::filesystem::path 化
+
+〜 を読めるようにしたいなら、std::string をそのまま古い Windows / ANSI 前提コードへ流すのをやめる。
+これが本質です。
+
+例外が出ている実際の数行があるなら、その箇所をこの形に置き換えるところまで具体的に詰めます。
