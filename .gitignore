@@ -1,2 +1,154 @@
-.vs
+# ========================================
+# Visual Studio / C# build outputs
+# ========================================
+
+# コンパイル結果
+[Bb]in/
+[Oo]bj/
+
+# Visual Studioのユーザー固有設定
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Codeの設定
+# チームで共有したい場合は削除する
+.vscode/
+
+# ========================================
+# Debug / Release build folders
+# ========================================
+
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]uild/
+[Ll]og/
+[Ll]ogs/
+
+# ========================================
+# .NET
+# ========================================
+
+# .NET Core / .NETの生成ファイル
+artifacts/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# ========================================
+# NuGet
+# ========================================
+
+# NuGetパッケージ
+*.nupkg
+*.snupkg
+
+# packagesフォルダは通常Git管理しない
+# packages.configを使う古い.NET Framework案件向け
+**/[Pp]ackages/*
+
+# packagesフォルダ内のrepositories.configだけ残したい場合
+!**/[Pp]ackages/build/
+!**/[Pp]ackages/repositories.config
+
+# NuGetの一時ファイル
+*.nuget.props
+*.nuget.targets
+
+# ========================================
+# Test results / coverage
+# ========================================
+
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+coverage/
+coverage.*
+*.coverage
+*.coveragexml
+TestResults/
+
+# ========================================
+# IDE / analysis tools
+# ========================================
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# StyleCop
+StyleCopReport.xml
+
+# ========================================
+# Generated files
+# ========================================
+
+# 自動生成されたログや一時ファイル
+*.log
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# ========================================
+# Publish outputs
+# ========================================
+
+publish/
+[Pp]ublish/
+*.Publish.xml
+*.pubxml.user
+
+# ========================================
+# Database / local data
+# ========================================
+
+# ローカルDB
+*.mdf
+*.ldf
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================================
+# Secrets / environment-specific files
+# ========================================
+
+# 環境変数
+.env
+.env.*
+!.env.example
+
+# ユーザーシークレットや証明書
+*.pfx
+*.p12
+*.key
+
+# ローカル専用設定
+appsettings.Local.json
+appsettings.Development.local.json
 
